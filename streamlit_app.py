@@ -36,12 +36,12 @@ if ingredients_list:
         "https://my.smoothiefroot.com/api/fruit/" + fruit_chosen
     )
 
-    if smoothiefroot_response.status_code == 200:
-        sf_data = smoothiefroot_response.json()
-        sf_df = pd.DataFrame([sf_data])
-        st.dataframe(sf_df, use_container_width=True)  # ✅ Here
-    else:
-        st.error("Failed to fetch data for " + fruit_chosen)
+        if smoothiefroot_response.status_code == 200:
+            sf_data = smoothiefroot_response.json()
+            sf_df = pd.DataFrame([sf_data])
+            st.dataframe(sf_df, use_container_width=True)  # ✅ Here
+        else:
+            st.error("Failed to fetch data for " + fruit_chosen)
   
     if st.button("Submit Order"):
         session.sql(
