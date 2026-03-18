@@ -17,40 +17,13 @@ if name_on_order:
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# --- Add SEARCH_ON column and populate from API ---
-try:
-    # Add column if not exists
-    session.sql("""
-        ALTER TABLE fruit_options
-        ADD COLUMN IF NOT EXISTS SEARCH_ON STRING
-    """).collect()
-
-    # Fetch all fruits from API
-    api_response = requests.get("https://my.smoothiefroot.com/api/fruit/all")
-    api_response.raise_for_status()
-    all_fruits = api_response.json()  # Expecting list of dicts
-
-    # Update each fruit's SEARCH_ON
-    for fruit in all_fruits:
-        fruit_name = fruit["name"]
-        search_value = fruit.get("search_on", "")
-        session.sql("""
-            UPDATE fruit_options
-            SET SEARCH_ON = ?
-            WHERE FRUIT_NAME = ?
-        """, params=[search_value, fruit_name]).collect()
-
-except requests.exceptions.RequestException:
-    st.error("Failed to fetch SEARCH_ON data from the API")
-except Exception as e:
-    st.warning(f"Could not update SEARCH_ON column: {e}")
-
 # --- Fetch fruit options from Snowflake ---
-fruit_df = session.table("fruit_options").select(col("FRUIT_NAME"))
+fruit_df = session.table("fruit_options").select(col("FRUIT_NAME"), col("SEARCH_ON"))
 fruit_rows = fruit_df.collect()
 
-# Convert to Python list safely
-fruit_list = [row.FRUIT_NAME for row in fruit_rows]
+# Convert Snowpark Rows to dictionary: FRUIT_NAME -> SEARCH_ON
+fruit_map = {row.FRUIT_NAME: row.SEARCH_ON for row in fruit_rows}
+fruit_list = list(fruit_map.keys())
 
 if not fruit_list:
     st.warning("No fruits found in Snowflake table! Check your database/schema/table.")
@@ -71,20 +44,19 @@ if ingredients_list:
 
         st.subheader(fruit_chosen + " Nutrition Information")
 
-        # Fetch nutrition info from API
+        # Use SEARCH_ON field for API lookup
+        api_name = fruit_map.get(fruit_chosen, fruit_chosen)  # fallback to user input
         try:
-            response = requests.get(
-                f"https://my.smoothiefroot.com/api/fruit/{fruit_chosen}"
-            )
+            response = requests.get(f"https://my.smoothiefroot.com/api/fruit/{api_name}")
             response.raise_for_status()
             data = response.json()
 
-            # Convert to DataFrame for nice display
+            # Convert to DataFrame for display
             nutrition_df = pd.DataFrame([data])
             st.dataframe(nutrition_df, use_container_width=True)
 
         except requests.exceptions.RequestException:
-            st.error(f"Failed to fetch data for {fruit_chosen}")
+            st.error(f"Failed to fetch data for {fruit_chosen} (API lookup: {api_name})")
 
 # --- Submit Order ---
 if ingredients_list and st.button("Submit Order"):
