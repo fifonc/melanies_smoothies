@@ -31,10 +31,10 @@ if ingredients_list:
     ingredients_string = ''
 
     for fruit_chosen in ingredients_list:
-    st.subheader(fruit_chosen + " Nutrition Information")
-    smoothiefroot_response = requests.get(
-        "https://my.smoothiefroot.com/api/fruit/" + fruit_chosen
-    )
+        st.subheader(fruit_chosen + " Nutrition Information")
+        smoothiefroot_response = requests.get(
+                  "https://my.smoothiefroot.com/api/fruit/" + fruit_chosen
+                  )
 
         if smoothiefroot_response.status_code == 200:
             sf_data = smoothiefroot_response.json()
