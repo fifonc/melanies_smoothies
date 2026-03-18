@@ -1,4 +1,4 @@
-# Import Python packages
+# Import packages
 import streamlit as st
 from snowflake.snowpark.functions import col
 import pandas as pd
@@ -16,6 +16,34 @@ if name_on_order:
 # --- Snowflake Connection ---
 cnx = st.connection("snowflake")
 session = cnx.session()
+
+# --- Add SEARCH_ON column and populate from API ---
+try:
+    # Add column if not exists
+    session.sql("""
+        ALTER TABLE fruit_options
+        ADD COLUMN IF NOT EXISTS SEARCH_ON STRING
+    """).collect()
+
+    # Fetch all fruits from API
+    api_response = requests.get("https://my.smoothiefroot.com/api/fruit/all")
+    api_response.raise_for_status()
+    all_fruits = api_response.json()  # Expecting list of dicts
+
+    # Update each fruit's SEARCH_ON
+    for fruit in all_fruits:
+        fruit_name = fruit["name"]
+        search_value = fruit.get("search_on", "")
+        session.sql("""
+            UPDATE fruit_options
+            SET SEARCH_ON = ?
+            WHERE FRUIT_NAME = ?
+        """, params=[search_value, fruit_name]).collect()
+
+except requests.exceptions.RequestException:
+    st.error("Failed to fetch SEARCH_ON data from the API")
+except Exception as e:
+    st.warning(f"Could not update SEARCH_ON column: {e}")
 
 # --- Fetch fruit options from Snowflake ---
 fruit_df = session.table("fruit_options").select(col("FRUIT_NAME"))
@@ -41,10 +69,10 @@ if ingredients_list:
             response = requests.get(
                 f"https://my.smoothiefroot.com/api/fruit/{fruit_chosen}"
             )
-            response.raise_for_status()  # Raise error if API call fails
+            response.raise_for_status()
             data = response.json()
 
-            # Convert dict to DataFrame for nice display
+            # Convert to DataFrame for nice display
             nutrition_df = pd.DataFrame([data])
             st.dataframe(nutrition_df, use_container_width=True)
 
@@ -53,13 +81,9 @@ if ingredients_list:
 
 # --- Submit Order ---
 if ingredients_list and st.button("Submit Order"):
-    # Remove trailing comma and space
     ingredients_string = ingredients_string.rstrip(", ")
-
-    # Insert order into Snowflake
     session.sql(
         "INSERT INTO orders (ingredients, name_on_order) VALUES (?, ?)",
         params=[ingredients_string, name_on_order]
     ).collect()
-
     st.success("Your Smoothie is ordered!", icon="✅")
