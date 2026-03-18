@@ -16,8 +16,6 @@ st.write("The name on your Smoothie will be: ", name_on_order)
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-st.write("Secrets loaded:", st.secrets)
-
 my_dataframe = session.table("fruit_options").select(col('FRUIT_NAME'))
 
 fruit_rows = my_dataframe.collect()
