@@ -40,7 +40,7 @@ if ingredients_list:
         )
 
         if smoothiefroot_response.status_code == 200:
-            st.json(smoothiefroot_response.json())
+            st.json(smoothiefroot_response.json(),use_container_width = True)
         else:
             st.error("Failed to fetch data for " + fruit_chosen)
   
