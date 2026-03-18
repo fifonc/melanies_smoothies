@@ -48,11 +48,18 @@ except Exception as e:
 # --- Fetch fruit options from Snowflake ---
 fruit_df = session.table("fruit_options").select(col("FRUIT_NAME"))
 fruit_rows = fruit_df.collect()
-fruit_list = [row["FRUIT_NAME"] for row in fruit_rows]
+
+# Convert to Python list safely
+fruit_list = [row.FRUIT_NAME for row in fruit_rows]
+
+if not fruit_list:
+    st.warning("No fruits found in Snowflake table! Check your database/schema/table.")
 
 # --- Fruit Selection ---
 ingredients_list = st.multiselect(
-    "Choose up to 5 ingredients:", fruit_list, max_selections=5
+    "Choose up to 5 ingredients:",
+    options=fruit_list,
+    max_selections=5
 )
 
 # --- Show nutrition info for selected fruits ---
